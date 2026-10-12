@@ -6,7 +6,7 @@ var should = require('should');
 
 var chinachu = require('chinachu-common');
 
-var testDataPath = os.tmpDir() + '/chinachu-test-' + new Date().getTime() + '.json';
+var testDataPath = os.tmpdir() + '/chinachu-test-' + new Date().getTime() + '.json';
 
 describe('(init)', function() {
 	
@@ -33,7 +33,12 @@ describe('jsonWatcher', function() {
 	
 	it('read', function(done) {
 		
+		var called = false;
 		chinachu.jsonWatcher(testDataPath, function(err, data, msg) {
+			// jsonWatcher keeps watching; ignore events after the first read
+			// (e.g. the clean-up step deleting the file)
+			if (called) { return; }
+			called = true;
 			should.strictEqual(null, err);
 			
 			test = data;

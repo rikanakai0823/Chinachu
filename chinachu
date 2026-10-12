@@ -16,7 +16,8 @@ fi
 shopt -s extglob
 
 # variables
-NODE_VER=14.18.3
+NODE_VER=24.21.0
+YARN_VER=1.22.22
 
 main () {
   local SELF_PATH DIR SYM
@@ -44,6 +45,7 @@ main () {
   NAVE_DIR=${CHINACHU_DIR}/.nave
   NODE_PATH=${NAVE_DIR}/installed/${NODE_VER}/bin/node
   NPM_PATH=${NAVE_DIR}/installed/${NODE_VER}/bin/npm
+  YARN_PATH=${NAVE_DIR}/installed/${NODE_VER}/bin/yarn
   USR_DIR=${CHINACHU_DIR}/usr
 
   export PATH=$USR_DIR/bin:${NAVE_DIR}/installed/${NODE_VER}/bin:$PATH
@@ -145,6 +147,11 @@ chinachu_installer_node () {
   ln -sv $NODE_PATH ${NAVE_DIR}/node
   ln -sv $NPM_PATH ${NAVE_DIR}/npm
 
+  echo "Installing Yarn using NPM..."
+  $NPM_PATH install -g yarn@${YARN_VER}
+  rm -fv ${NAVE_DIR}/yarn
+  ln -sv $YARN_PATH ${NAVE_DIR}/yarn
+
   echo "done."
 
   return 0
@@ -153,10 +160,9 @@ chinachu_installer_node () {
 chinachu_installer_node_modules () {
   remove_dir node_modules
 
-  echo "Installing Node Modules using NPM..."
+  echo "Installing Node Modules using Yarn..."
 
-  npm install
-  npm update
+  yarn install --frozen-lockfile
 
   echo "done."
 
