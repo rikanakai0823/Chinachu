@@ -43,7 +43,6 @@ const isPrivateIPv4 = (addr) => {
 	const a = +p[0], b = +p[1];
 	return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 };
-const geoip = require('geoip-lite');
 const mdns = require('mdns-js');
 const mirakurun = new (require("mirakurun").default)();
 
@@ -368,17 +367,6 @@ function httpServerMain(req, res, query) {
 			'"' + (req.headers['user-agent'] || '-') + '"'
 		].join(' '));
 	};
-
-	// country restriction
-	if (Array.isArray(config.wuiAllowCountries) && config.wuiAllowCountries.length > 0) {
-		var geo = geoip.lookup(remoteAddress);
-		if (geo !== null && config.wuiAllowCountries.indexOf(geo.country) === -1) {
-			res.writeHead(403, {'content-type': 'text/plain'});
-			res.end('403 Forbidden\n');
-			log(403);
-			console.warn('Non-allowed Country IP Blocked', remoteAddress, JSON.stringify(geo));
-		}
-	}
 
 	// serve static file
 	var location = req.url;

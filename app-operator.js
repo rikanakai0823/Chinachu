@@ -41,9 +41,7 @@ process.on('uncaughtException', (err) => {
 // 追加モジュールのロード
 const dateFormat = require('dateformat');
 const mkdirp = require('mkdirp');
-const Mtwitter = require('mtwitter');
 const disk = require('diskusage');
-const nodemailer = require("nodemailer");
 const chinachu = require('chinachu-common');
 const mirakurun = new (require("mirakurun").default)();
 
@@ -58,13 +56,11 @@ const config = require(CONFIG_FILE);
 
 // settings
 const schedulerIntervalTime = 1000 * 60 * 10;// 最長10分毎
-const notifyIntervalTime = 1000 * 60 * 60 * 3;// 3時間毎
 const prepTime = 1000 * 15;// 15秒前
 const recordingPriority = config.recordingPriority || 2;
 const conflictedPriority = config.conflictedPriority || 1;
 const storageLowSpaceThresholdMB = config.storageLowSpaceThresholdMB || 3000;// 3 GB
 const storageLowSpaceAction = config.storageLowSpaceAction || "remove"; // "none" | "stop" | "remove"
-const storageLowSpaceNotifyTo = config.storageLowSpaceNotifyTo;// e-mail address
 const storageLowSpaceCommand = config.storageLowSpaceCommand || null;// command
 
 // setuid
@@ -110,9 +106,6 @@ mirakurun.priority = recordingPriority;
 
 console.info(mirakurun);
 
-// sendmail (built-in transport since nodemailer 6)
-const transporter = nodemailer.createTransport({ sendmail: true });
-
 // 録画中リストをクリア
 fs.writeFileSync(RECORDING_DATA_FILE, '[]');
 
@@ -122,36 +115,10 @@ if (!fs.existsSync(config.recordedDir)) {
 	mkdirp.sync(config.recordedDir);
 }
 
-// Tweeter (Experimental)
-let tweeter, tweeterUpdater;
-if (config.operTweeter && config.operTweeterAuth && config.operTweeterFormat) {
-	tweeter = new Mtwitter({
-		consumer_key       : config.operTweeterAuth.consumerKey,
-		consumer_secret    : config.operTweeterAuth.consumerSecret,
-		access_token_key   : config.operTweeterAuth.accessToken,
-		access_token_secret: config.operTweeterAuth.accessTokenSecret
-	});
-
-	tweeterUpdater = (status) => {
-		tweeter.post(
-			'/statuses/update',
-			{ status: status },
-			(err, item) => {
-				if (err) {
-					util.log('[Tweeter] Error: ' + JSON.stringify(err));
-				} else {
-					util.log('[Tweeter] Updated: ' + status);
-				}
-			}
-		);
-	};
-}
-
 let clock = Date.now();
 let scheduler = null;
 let scheduled = 0;
 let stChecked = 0;
-let stNotified = 0;
 
 // メインループ
 setInterval(() => {
@@ -386,22 +353,6 @@ function doRecord(program, stream) {
 		value: stream
 	});
 
-	// Tweeter (Experimental)
-	if (tweeter && config.operTweeterFormat.start) {
-		tweeterUpdater(
-			config.operTweeterFormat.start
-				.replace('<id>', program.id)
-				.replace('<type>', program.channel.type)
-				.replace('<channel>', ((program.channel.type === 'CS') ? program.channel.sid : program.channel.channel))
-				.replace('<title>',   program.title)
-				.replace('<fullTitle>', program.fullTitle)
-				.replace('<channelname>', program.channel.name)
-				.replace('<date>', dateFormat(new Date(program.start), "mm/dd"))
-				.replace('<starttime>', dateFormat(new Date(program.start), "h:MM"))
-				.replace('<endtime>', dateFormat(new Date(program.end), "h:MM"))
-		);
-	}
-
 	// お片付け
 	function finalize() {
 
@@ -448,22 +399,6 @@ function doRecord(program, stream) {
 		if (config.recordedCommand) {
 			const postProcess = child_process.spawn(config.recordedCommand, [recPath, JSON.stringify(program)]);
 			util.log('SPAWN: ' + config.recordedCommand + ' (pid=' + postProcess.pid + ')');
-		}
-
-		// Tweeter (Experimental)
-		if (tweeter && config.operTweeterFormat.end) {
-			tweeterUpdater(
-				config.operTweeterFormat.end
-					.replace('<id>', program.id)
-					.replace('<type>', program.channel.type)
-					.replace('<channel>', ((program.channel.type === 'CS') ? program.channel.sid : program.channel.channel))
-					.replace('<title>', program.title)
-					.replace('<fullTitle>', program.fullTitle)
-					.replace('<channelname>', program.channel.name)
-					.replace('<date>', dateFormat(new Date(program.start), "mm/dd"))
-					.replace('<starttime>', dateFormat(new Date(program.start), "h:MM"))
-					.replace('<endtime>', dateFormat(new Date(program.end), "h:MM"))
-			);
 		}
 
 		finalize = null;
@@ -517,21 +452,6 @@ function storageChecker() {
 				}
 			}
 
-			// 3. メール通知
-			if (storageLowSpaceNotifyTo && clock - stNotified > notifyIntervalTime) {
-				stNotified = clock;
-
-				transporter.sendMail({
-					from: "Chinachu <chinachu@localhost>",
-					to: storageLowSpaceNotifyTo,
-					subject: "[Chinachu] ALERT: Storage Low Space!",
-					text: `Current Free Space is ${freeMB} MB.\nThreshold is ${storageLowSpaceThresholdMB} MB.`
-				}, (err, info) => {
-					if (err) {
-						console.log(err);
-					}
-				});
-			}
 		}
 	});
 }
