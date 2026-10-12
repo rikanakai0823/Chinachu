@@ -36,8 +36,13 @@ const https = require('https');
 const auth = require('http-auth');
 const socketio = require('socket.io');
 const chinachu = require('chinachu-common');
-const ip = require("ip");
-const geoip = require('geoip-lite');
+// private IPv4 ranges (RFC 1918); replaces the `ip` package (GHSA-2p57-rm9w-gvfp has no upstream fix)
+const isPrivateIPv4 = (addr) => {
+	const p = addr.split(".");
+	if (p.length !== 4) { return false; }
+	const a = +p[0], b = +p[1];
+	return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+};
 const mdns = require('mdns-js');
 const mirakurun = new (require("mirakurun").default)();
 
@@ -249,7 +254,7 @@ if (openServerEnabled) {
 					return (
 						a.family === "IPv4" &&
 						a.internal === false &&
-						ip.isPrivate(a.address) === true
+						isPrivateIPv4(a.address) === true
 					);
 				})
 				.forEach(a => addresses.push(a.address));
@@ -362,17 +367,6 @@ function httpServerMain(req, res, query) {
 			'"' + (req.headers['user-agent'] || '-') + '"'
 		].join(' '));
 	};
-
-	// country restriction
-	if (Array.isArray(config.wuiAllowCountries) && config.wuiAllowCountries.length > 0) {
-		var geo = geoip.lookup(remoteAddress);
-		if (geo !== null && config.wuiAllowCountries.indexOf(geo.country) === -1) {
-			res.writeHead(403, {'content-type': 'text/plain'});
-			res.end('403 Forbidden\n');
-			log(403);
-			console.warn('Non-allowed Country IP Blocked', remoteAddress, JSON.stringify(geo));
-		}
-	}
 
 	// serve static file
 	var location = req.url;
