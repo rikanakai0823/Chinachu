@@ -36,7 +36,13 @@ const https = require('https');
 const auth = require('http-auth');
 const socketio = require('socket.io');
 const chinachu = require('chinachu-common');
-const ip = require("ip");
+// private IPv4 ranges (RFC 1918); replaces the `ip` package (GHSA-2p57-rm9w-gvfp has no upstream fix)
+const isPrivateIPv4 = (addr) => {
+	const p = addr.split(".");
+	if (p.length !== 4) { return false; }
+	const a = +p[0], b = +p[1];
+	return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+};
 const geoip = require('geoip-lite');
 const mdns = require('mdns-js');
 const mirakurun = new (require("mirakurun").default)();
@@ -249,7 +255,7 @@ if (openServerEnabled) {
 					return (
 						a.family === "IPv4" &&
 						a.internal === false &&
-						ip.isPrivate(a.address) === true
+						isPrivateIPv4(a.address) === true
 					);
 				})
 				.forEach(a => addresses.push(a.address));
