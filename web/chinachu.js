@@ -15,6 +15,8 @@
 		apiRoot: app.def.apiRoot
 	});
 
+	app.view.connBadge.entity.update('DISCONNECTED'.__());
+
 	app.socket = io.connect(window.location.protocol + '//' + window.location.host, {
 		connectTimeout: 3000,
 		path: window.location.pathname.replace(/[^\/]*$/g, '') + 'socket.io',
@@ -294,16 +296,26 @@
 
 	var socketOnConnect = function _socketOnConnect() {
 		app.view.loadingMask.hide();
+		app.view.connBadge.hide();
 
 		document.fire('chinachu:connect');
 	};
 
 	var socketOnDisconnect = function _socketOnDisconnect() {
-		app.view.loadingMask.show();
+		// Non-blocking: the realtime socket is optional (pages fall back to
+		// polling), so a disconnect must not cover the UI with the full mask.
+		app.view.connBadge.show();
 
 		document.fire('chinachu:disconnect');
 
 		app.notify.create({ title: 'Chinachu', message: 'DISCONNECTED'.__() });
+	};
+
+	var socketOnConnectError = function _socketOnConnectError() {
+		// Never leave the loading mask up when the socket cannot connect;
+		// the UI stays usable and socket.io keeps retrying in the background.
+		app.view.loadingMask.hide();
+		app.view.connBadge.show();
 	};
 
 	var socketOnStatus = function _socketOnStatus(data) {
@@ -488,8 +500,10 @@
 		app.stat.lastRecordedCount = e.memo.length;
 	});
 
-	app.socket.on('connect'   , socketOnConnect);
-	app.socket.on('disconnect', socketOnDisconnect);
+	app.socket.on('connect'        , socketOnConnect);
+	app.socket.on('disconnect'     , socketOnDisconnect);
+	app.socket.on('connect_error'  , socketOnConnectError);
+	app.socket.on('connect_timeout', socketOnConnectError);
 
 	app.socket.on('status'    , socketOnStatus);
 

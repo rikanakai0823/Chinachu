@@ -128,6 +128,7 @@
 		//
 		app.view.loadingMask = new sakura.ui.Container({className: 'fullmask loading'}).render(app.view.body);
 		app.view.panicMask   = new sakura.ui.Container({className: 'fullmask panic'}).render(app.view.body).hide();
+		app.view.connBadge   = new sakura.ui.Container({className: 'connbadge'}).render(app.view.body).hide();
 		
 		//
 		// 多言語化
