@@ -24,6 +24,14 @@ const config = require(CONFIG_FILE);
 const path = require('path');
 const fs = require('fs');
 const util = require('util');
+// Node 24 removed util.log; restore its timestamped format as a shim so the
+// existing util.log(...) calls keep working on old and new Node alike.
+if (typeof util.log !== 'function') {
+	util.log = (...args) => {
+		const d = new Date();
+		console.log(`${d.toDateString().slice(4, 10)} ${d.toTimeString().slice(0, 8)} -`, ...args);
+	};
+}
 const child_process = require('child_process');
 const url = require('url');
 const querystring = require('querystring');
